@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Snusplan">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Snusplan</title>
+<style>
+:root{--bg:#f5f5f3;--card:#fff;--text:#1d1d1f;--muted:#6e6e73;--line:#ddd;--accent:#2f6fed}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif}
+main{max-width:760px;margin:auto;padding:calc(22px + env(safe-area-inset-top)) 18px calc(40px + env(safe-area-inset-bottom))}
+h1{font-size:31px;letter-spacing:-.7px;margin:0 0 4px}.sub{color:var(--muted);margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:17px;padding:19px;margin-bottom:14px}
+.week{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.08em}.big{font-size:54px;font-weight:700;letter-spacing:-2px}.phase{font-size:17px;font-weight:600;margin:0 0 16px}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:#f7f7f7;border-radius:12px;padding:13px}.metric span{display:block;color:var(--muted);font-size:12px}.metric strong{font-size:25px}
+.advice{margin-top:14px;padding:13px 14px;border-left:3px solid var(--accent);background:#f7f9ff;line-height:1.45}
+.bar{height:8px;background:#e8e8e8;border-radius:9px;margin-top:15px;overflow:hidden}.fill{height:100%;background:var(--accent);width:0}
+label{display:block;color:var(--muted);font-size:12px;margin:0 0 5px}input,textarea{width:100%;padding:11px;border:1px solid #ccc;border-radius:9px;font:inherit;background:#fff}button{border:0;border-radius:9px;padding:11px 14px;font:inherit;background:#111;color:#fff}button.secondary{background:#eee;color:#111}
+.row{display:flex;gap:10px;align-items:end}.row>div{flex:1}.small{color:var(--muted);font-size:12px;line-height:1.45}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px 5px;border-bottom:1px solid #eee}th{color:var(--muted);font-weight:500}tr.active{background:#eef4ff;font-weight:600}
+.note{min-height:82px;resize:vertical}.status{color:#287a43;font-size:13px;margin-top:8px;min-height:18px}
+@media(max-width:500px){main{padding-left:13px;padding-right:13px}.card{padding:16px}.big{font-size:48px}}
+</style>
+</head>
+<body>
+<main>
+<h1>Snusplan</h1>
+<div class="sub">Långsam övergång från General Mini White till nikotinfritt.</div>
+
+<section class="card">
+<div class="week" id="weekLabel">Aktuell vecka</div>
+<div class="big" id="week">–</div>
+<div class="phase" id="phase">Ange startdatum</div>
+<div class="metrics">
+<div class="metric"><span>General Mini / dag</span><strong id="snus">–</strong></div>
+<div class="metric"><span>2 mg-tuggummi / dag</span><strong id="gum">–</strong></div>
+</div>
+<div class="advice" id="advice">Välj startdatum för att se din plan.</div>
+<div class="bar"><div class="fill" id="fill"></div></div>
+<div class="small" id="progress"></div>
+</section>
+
+<section class="card">
+<strong>Inställningar</strong>
+<div style="margin-top:12px">
+<label>Första dagen på vecka 1</label>
+<div class="row"><div><input type="date" id="start"></div><button onclick="saveStart()">Spara</button></div>
+</div>
+</section>
+
+<section class="card">
+<strong>Dagens logg</strong>
+<div class="row" style="margin-top:12px">
+<div><label>Snus idag</label><input type="number" min="0" id="todaySnus"></div>
+<div><label>2 mg-tuggummi</label><input type="number" min="0" id="todayGum"></div>
+</div>
+<button style="margin-top:10px" onclick="saveLog()">Spara</button>
+<div class="status" id="status"></div>
+<div style="margin-top:14px"><label>Anteckning</label><textarea class="note" id="note" placeholder="Irritabilitet, sug, något som fungerade bra..."></textarea></div>
+<button class="secondary" style="margin-top:8px" onclick="saveNote()">Spara anteckning</button>
+</section>
+
+<section class="card">
+<strong>Planen</strong>
+<div style="overflow-x:auto;margin-top:10px">
+<table><thead><tr><th>Vecka</th><th>Snus</th><th>Tuggummi</th><th>Kommentar</th></tr></thead><tbody id="table"></tbody></table>
+</div>
+</section>
+<div class="small">Planen är avsiktligt långsam. Vid tydlig irritabilitet eller abstinens: håll hellre aktuell nivå längre än att forcera nästa steg. Följ produktens doseringsanvisningar för nikotintuggummi.</div>
+</main>
+<script>
+const plan=[
+[1,20,0,"Registrera tidpunkterna. Ingen press att minska ännu."],[2,19,1,"Ta bort en av de minst viktiga prillorna."],[3,18,1,"Vänj dig vid en liten minskning."],[4,17,1,"Håll tempot lugnt."],
+[5,16,1,"Börja ersätta specifika snustillfällen."],[6,15,2,"Byt ut ytterligare en prilla."],[7,14,3,"Fortsätt gradvis."],[8,13,4,"Tuggummit tar successivt över."],[9,12,5,"Planera ersättningen."],[10,11,6,"Fortsätt samma princip."],[11,10,7,"Snusmängden är nu tydligt lägre."],[12,9,8,"Låt kroppen vänja sig."],
+[13,8,8,"Stabilisera."],[14,7,8,"En prilla mindre."],[15,6,8,"Fortsätt långsamt."],[16,5,8,"Ingen anledning att forcera."],[17,4,8,"Tuggummit står för merparten."],[18,3,8,"Håll nivån om det behövs."],[19,2,8,"Nästan helt utan snus."],[20,1,8,"Sista General-prillan när det känns rätt."],
+[21,0,8,"Snuset är borta. Börja inte minska tuggummit ännu."],[22,0,8,"Stabilisera."],[23,0,8,"Stabilisera."],[24,0,7,"Första lilla minskningen av tuggummit."],[25,0,7,"Håll nivån."],[26,0,7,"Håll nivån."],
+[27,0,6,"Minska ett tuggummi."],[28,0,6,"Håll nivån."],[29,0,6,"Håll nivån."],[30,0,5,"Minska ett tuggummi."],[31,0,5,"Håll nivån."],[32,0,5,"Håll nivån."],
+[33,0,4,"Minska ett tuggummi."],[34,0,4,"Håll nivån."],[35,0,4,"Håll nivån."],[36,0,3,"Minska ett tuggummi."],[37,0,3,"Håll nivån."],[38,0,3,"Håll nivån."],
+[39,0,2,"Minska ett tuggummi."],[40,0,2,"Håll nivån."],[41,0,2,"Håll nivån."],[42,0,2,"Håll nivån."],[43,0,1,"Sista tuggummifasen."],[44,0,1,"Håll nivån."],[45,0,1,"Håll nivån."],[46,0,1,"Förbered sista steget."],[47,0,0,"Nikotinfri."]
+];
+function week(){let s=localStorage.getItem("start");if(!s)return null;let a=new Date(s+"T00:00:00"),b=new Date();b.setHours(0,0,0,0);return Math.floor((b-a)/86400000/7)+1}
+function phase(w){if(w<=4)return"Fas 1 · försiktig minskning";if(w<=20)return"Fas 2–3 · byt snus mot tuggummi";if(w<=23)return"Stabilisering · 0 snus";return"Fas 4 · trappa ned tuggummit"}
+function render(){let s=localStorage.getItem("start");document.getElementById("start").value=s||"";let w=week(),r=w&&w>=1?plan[Math.min(w,47)-1]:null;
+document.getElementById("week").textContent=r?r[0]:"–";document.getElementById("phase").textContent=r?phase(r[0]):"Ange startdatum";document.getElementById("snus").textContent=r?r[1]:"–";document.getElementById("gum").textContent=r?r[2]:"–";document.getElementById("advice").textContent=r?r[3]:"Välj startdatum för att se din plan.";
+let p=r?Math.min(100,r[0]/47*100):0;document.getElementById("fill").style.width=p+"%";document.getElementById("progress").textContent=r?`Vecka ${r[0]} av 47 · ${Math.round(p)} %`:"";
+let t=document.getElementById("table");t.innerHTML="";plan.forEach(x=>{let tr=document.createElement("tr");if(r&&x[0]===r[0])tr.className="active";tr.innerHTML=`<td>${x[0]}</td><td>${x[1]}</td><td>${x[2]}</td><td>${x[3]}</td>`;t.appendChild(tr)});
+let k=new Date().toISOString().slice(0,10),l=JSON.parse(localStorage.getItem("log_"+k)||"null");if(l){todaySnus.value=l.snus;todayGum.value=l.gum}note.value=localStorage.getItem("note_"+k)||""}
+function saveStart(){if(start.value){localStorage.setItem("start",start.value);render();status.textContent="Startdatum sparat."}}
+function saveLog(){let k=new Date().toISOString().slice(0,10);localStorage.setItem("log_"+k,JSON.stringify({snus:todaySnus.value,gum:todayGum.value}));status.textContent="Dagens logg sparad."}
+function saveNote(){let k=new Date().toISOString().slice(0,10);localStorage.setItem("note_"+k,note.value);status.textContent="Anteckning sparad."}
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+render();
+</script>
+</body></html>
