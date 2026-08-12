@@ -1,0 +1,54 @@
+<!doctype html><html lang="sv"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Snusplan">
+<link rel="manifest" href="manifest.webmanifest"><title>Snusplan</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f5f3;color:#1d1d1f;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+main{max-width:760px;margin:auto;padding:22px 14px 48px}h1{font-size:30px;margin:0 0 3px}.sub,.muted{color:#6e6e73}.sub{margin-bottom:18px}
+.card{background:#fff;border:1px solid #ddd;border-radius:17px;padding:17px;margin-bottom:13px}h2{font-size:18px;margin:0 0 13px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field label{display:block;color:#6e6e73;font-size:12px;margin-bottom:5px}
+input,select,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radius:9px;background:#fff;font:inherit}textarea{min-height:75px;resize:vertical}
+button{border:0;border-radius:9px;padding:11px 14px;background:#111;color:#fff;font:inherit}.secondary{background:#eee;color:#111}
+.actions{display:flex;gap:9px;flex-wrap:wrap}.status{color:#287a43;font-size:13px;min-height:18px;margin-top:7px}
+.big{font-size:25px;font-weight:650;margin:5px 0 15px}.pill{display:inline-block;background:#eee;border-radius:999px;padding:5px 9px;font-size:12px;margin-right:5px}
+.entry{padding:12px 0;border-bottom:1px solid #eee}.entry:last-child{border:0}.head{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.tags{color:#555;font-size:13px;line-height:1.5;margin-top:4px}.muted{font-size:12px;line-height:1.45}.backup{background:#f7f7f5;border-radius:10px;padding:10px;margin-top:12px}
+</style></head><body><main>
+<h1>Snusplan</h1><div class="sub">Nedtrappning med nikotintuggummi som hjälpmedel.</div>
+<section class="card"><h2>Nuvarande vecka</h2><div id="plan"></div></section>
+<section class="card"><h2>Dagens registrering</h2><div class="grid">
+<div class="field"><label>Datum</label><input id="date" type="date"></div>
+<div class="field"><label>Antal snus</label><input id="snus" type="number" min="0" step="1"></div>
+<div class="field"><label>Nikotintuggummin</label><input id="gum" type="number" min="0" step="1"></div>
+<div class="field"><label>Abstinens / irritabilitet</label><select id="withdrawal"><option></option><option>Ingen</option><option>Lätt</option><option>Måttlig</option><option>Påtaglig</option><option>Stark</option></select></div>
+</div><div class="field" style="margin-top:10px"><label>Kommentar</label><textarea id="comment" placeholder="T.ex. ovanligt irriterad, svårt sug, gick bra trots lägre mängd..."></textarea></div>
+<div class="actions" style="margin-top:10px"><button onclick="save()">Spara dagen</button><button class="secondary" onclick="clearForm()">Rensa</button></div><div class="status" id="status"></div></section>
+<section class="card"><h2>Översikt</h2><div id="summary"></div></section>
+<section class="card"><h2>Historik</h2><div class="actions">
+<button class="secondary" onclick="backup()">Säkerhetskopiera JSON</button><button class="secondary" onclick="csv()">Exportera CSV</button>
+<button class="secondary" onclick="document.getElementById('file').click()">Återställ JSON</button><input id="file" type="file" accept=".json" style="display:none" onchange="imp(event)">
+</div><div class="backup" id="backupInfo">Ingen säkerhetskopia skapad ännu.</div><div id="history"></div></section>
+<div class="muted">Data sparas lokalt på enheten. Historiken börjar om från början i denna version.</div>
+</main><script>
+const START_DATE="2026-08-12";
+const PLAN=[
+[10,1,"Etablera rutinen. Ingen aggressiv nedtrappning."],[10,2,"Använd tuggummi mer systematiskt."],[9,2,"Liten minskning av snus."],[9,2,"Stabilisera."],[8,3,"Liten minskning av snus."],[8,3,"Stabilisera."],[7,3,"Liten minskning."],[7,3,"Stabilisera."],[6,4,"Liten minskning."],[6,4,"Stabilisera."],[5,4,"Liten minskning."],[5,4,"Stabilisera."],[4,4,"Fortsatt långsam minskning."],[4,4,"Stabilisera."],[3,4,"Liten minskning."],[3,4,"Stabilisera."],[2,5,"Sista tydliga snusfasen."],[2,5,"Stabilisera."],[1,5,"Mycket låg snusnivå."],[1,5,"Stabilisera."],[0,5,"Snusfri vecka. Tuggummi som stöd."],[0,5,"Fortsätt snusfritt."],[0,4,"Börja minska tuggummit."],[0,4,"Stabilisera."],[0,3,"Liten minskning."],[0,3,"Stabilisera."],[0,2,"Liten minskning."],[0,2,"Stabilisera."],[0,1,"Sista tuggummifasen."],[0,1,"Stabilisera."],[0,0,"Målet: helt utan snus och nikotintuggummi."]
+];
+let data=JSON.parse(localStorage.getItem("snusplanV2")||"{}"),lastBackup=localStorage.getItem("snusplanV2Backup")||"";
+date.value=new Date().toISOString().slice(0,10);
+function days(a,b){return Math.floor((new Date(a+"T00:00:00")-new Date(b+"T00:00:00"))/86400000)}
+function weekFor(d){return Math.max(1,Math.floor(days(d,START_DATE)/7)+1)}
+function planFor(d){let w=weekFor(d);return {week:w,snus:PLAN[Math.min(w-1,PLAN.length-1)][0],gum:PLAN[Math.min(w-1,PLAN.length-1)][1],note:PLAN[Math.min(w-1,PLAN.length-1)][2]}}
+function save(){let o={date:date.value,snus:Number(snus.value||0),gum:Number(gum.value||0),withdrawal:withdrawal.value,comment:comment.value};if(!o.date)return;data[o.date]=o;localStorage.setItem("snusplanV2",JSON.stringify(data));status.textContent="Dagen sparad.";render()}
+function clearForm(){date.value=new Date().toISOString().slice(0,10);snus.value="";gum.value="";withdrawal.value="";comment.value="";status.textContent=""}
+function load(d){let o=data[d];date.value=d;snus.value=o.snus??"";gum.value=o.gum??"";withdrawal.value=o.withdrawal||"";comment.value=o.comment||"";scrollTo({top:0,behavior:"smooth"})}
+function render(){let p=planFor(date.value);plan.innerHTML='<div class="pill">Vecka '+p.week+'</div><div class="big">Mål: '+p.snus+' snus/dag · '+p.gum+' tuggummi/dag</div><div class="muted">'+p.note+'</div>';
+let keys=Object.keys(data).sort().reverse(),recent=keys.slice(0,7),rs=recent.reduce((a,d)=>{a.s+=Number(data[d].snus||0);a.g+=Number(data[d].gum||0);return a},{s:0,g:0});
+summary.innerHTML=recent.length?'<b>Senaste 7 registrerade dagar</b><br>'+rs.s+' snus · '+rs.g+' tuggummin · snus i snitt '+(rs.s/recent.length).toFixed(1)+'/dag':'Ingen registrerad historik ännu.';
+history.innerHTML="";keys.forEach(d=>{let o=data[d],p=planFor(d),e=document.createElement("div");e.className="entry";e.innerHTML='<div class="head"><span>'+d+' · vecka '+p.week+'</span><button class="secondary" onclick="load(\''+d+'\')">Redigera</button></div><div class="tags">Snus: <b>'+o.snus+'</b> (mål '+p.snus+') · Tuggummi: <b>'+o.gum+'</b> (mål '+p.gum+')'+(o.withdrawal?' · Abstinens: '+o.withdrawal:"")+'</div>'+(o.comment?'<div class="tags">'+o.comment+'</div>':"");history.appendChild(e)});backupInfo.textContent=lastBackup?"Senaste säkerhetskopia: "+new Date(lastBackup).toLocaleString("sv-SE"):"Ingen säkerhetskopia skapad ännu."}
+function esc(v){return '"'+String(v??"").replaceAll('"','""')+'"'}function download(b,n){let a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function backup(){lastBackup=new Date().toISOString();localStorage.setItem("snusplanV2Backup",lastBackup);download(new Blob([JSON.stringify({version:2,exportedAt:lastBackup,data:data},null,2)],{type:"application/json"}),"snusplan-backup.json");status.textContent="Säkerhetskopia skapad.";render()}
+function csv(){let out=[["Datum","Vecka","Mål snus","Snus","Mål tuggummi","Tuggummi","Abstinens","Kommentar"].map(esc).join(",")];Object.keys(data).sort().forEach(d=>{let o=data[d],p=planFor(d);out.push([d,p.week,p.snus,o.snus,p.gum,o.gum,o.withdrawal,o.comment].map(esc).join(","))});download(new Blob(["\ufeff"+out.join("\n")],{type:"text/csv;charset=utf-8"}),"snusplan.csv")}
+function imp(e){let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result),incoming=x.data||x;data={...data,...incoming};localStorage.setItem("snusplanV2",JSON.stringify(data));render();status.textContent="Historiken återställd/importerad."}catch{status.textContent="Kunde inte läsa filen."}};r.readAsText(e.target.files[0])}
+if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});render();
+</script></body></html>
